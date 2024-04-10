@@ -1,0 +1,147 @@
+import time
+
+
+class Cell:
+    def __init__(self, idx) -> None:
+        self._state = 0
+
+        self.idx = idx
+
+    def __repr__(self) -> str:
+        if self._state == 1:
+            return "[-]"
+        if self._state == 2:
+            return "[*]"
+        return "[ ]"
+
+    def nextState(self) -> None:
+        if self._state >= 2:
+            return
+
+        self._state += 1
+
+    def isNormal(self) -> bool:
+        return self._state == 0
+
+    def isWarning(self) -> bool:
+        return self._state == 1
+
+    def isCritical(self) -> bool:
+        return self._state == 2
+
+    def getState(self) -> int:
+        return self._state
+
+
+class BaseZone:
+    _countRows = 20
+    _countColumns = 20
+
+    def __init__(self) -> None:
+        self._grid, self._cells = self._buildGrid()
+        self._cnt = 0
+
+        self._toWarning()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}\n" + "\n".join(str(r) for r in self._grid)
+
+    def _buildGrid(self) -> tuple[tuple[tuple[Cell, ...], ...], tuple[Cell, ...]]:
+        grid = []
+        cells = []
+
+        for i in range(self._countColumns):
+            row = []
+
+            for j in range(self._countRows):
+                idx = i * self._countColumns + j % self._countRows
+                cell = Cell(idx)
+                row.append(cell)
+                cells.append(cell)
+
+            grid.append(tuple(row))
+
+        return tuple(grid), tuple(cells)
+
+    def _toWarning(self) -> None:
+        return
+
+    def _toCritical(self) -> None:
+        return
+
+    def isEnd(self) -> bool:
+        return self._cnt == len(self._cells)
+
+    def nextZoneState(self) -> None:
+        self._toWarning()
+        self._toCritical()
+
+
+class Zone(BaseZone):
+
+    def _toWarning(self) -> None:
+        i = 0
+        for cell in self._cells:
+            if cell.isNormal():
+                cell.nextState()
+                i += 1
+            if i > 3:
+                break
+
+    def _toCritical(self) -> None:
+        i = 0
+        for cell in self._cells:
+            if cell.isWarning():
+                cell.nextState()
+                i += 1
+                self._cnt += 1
+            if i > 3:
+                break
+
+
+class ZoneWithSet(BaseZone):
+
+    def __init__(self) -> None:
+        self._grid, self._cells = self._buildGrid()
+        self._cnt = 0
+
+        self._normalCells = set(self._cells)
+        self._warningCells = set()
+        self._criticalCells = set()
+
+        self._toWarning()
+
+    def _toWarning(self) -> None:
+        i = 0
+        for cell in self._cells:
+            if cell.isNormal():
+                cell.nextState()
+                self._warningCells.add(cell)
+                i += 1
+            if i > 3:
+                break
+
+    def _toCritical(self) -> None:
+        while self._warningCells:
+            cell = self._warningCells.pop()
+            cell.nextState()
+            self._criticalCells.add(cell)
+            self._cnt += 1
+
+
+def proc(cls, n):
+    start = time.time()
+
+    for _ in range(n):
+        zone = cls()
+
+        while not zone.isEnd():
+            zone.nextZoneState()
+
+    print(f"{cls.__name__}: {time.time() - start}")
+
+
+if __name__ == "__main__":
+    n = 2_000
+    proc(Zone, n)
+    proc(ZoneWithSet, n)
